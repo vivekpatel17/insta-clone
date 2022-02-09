@@ -22,6 +22,5 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-#files and folders
+#files
 Firebase.js
-images

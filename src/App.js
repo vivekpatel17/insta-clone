@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-// import * as React from 'react';
-import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
-// import Typography from '@mui/material/Typography';
-import Modal from '@mui/material/Modal';
 import Posts from './posts/Posts';
-import { db, auth, firebaseApp } from './Firebase';
+import { db, auth } from './Firebase';
 import { collection, getDocs } from 'firebase/firestore';
-import { createUser, createUserWithEmailAndPassword, getAuth } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+} from "firebase/auth";
+import Modal from '@mui/material/Modal';
+import Box from '@mui/material/Box';
+// import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
 import { Input } from '@mui/material';
 
 import './App.css';
@@ -25,40 +29,51 @@ function App() {
     p: 4,
   };
   const [posts, setposts] = useState([]);
-  const [open, setopen] = useState(false);
-  const [username, setusername] = useState('');
-  const [email, setemail] = useState('');
-  const [password, setpassword] = useState('');
-  const [user, setuser] = useState(null);
+  const [OpenSignUP, setOpenSignUP] = useState(false);
+  const [OpenSignIN, setOpenSignIN] = useState(false);
+  const [Username, setUsername] = useState('');
+  const [Email, setEmail] = useState('');
+  const [Password, setPassword] = useState('');
+  const [User, setUser] = useState({});
+  const [LoadingSignUP, setLoadingSignUP] = useState(false);
+  const [LoadingSignIN, setLoadingSignIN] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe =  auth.onAuthStateChanged((authuser) => {
-      if(authuser ){
-        //  User has logged in.
-        console.log(authuser);
-        setuser(authuser);
+  //  Authentication
 
-        if(authuser.displayName) {
-          //  Don't update username.
+  onAuthStateChanged(auth, (currentUser) => {
+    setUser(currentUser);
+  })
 
-        } else {
-          //  If just created Someone.
-          return authuser.updateProfile({
-            displayName: username,
-          })
-        }
-      } else {
-        //  User has logged out.
-        setuser(null);
-      }
-    })
-
-    return () => {
-      //  Perform some Cleanup.
-      unsubscribe();
+  async function signUp(event) {
+    event.preventDefault();
+    setLoadingSignUP(true);
+    try{
+        const user = await createUserWithEmailAndPassword(auth, Email, Password);
+        console.log(user)
+    } catch (err) {
+        console.log(err.message);
     }
-  }, [user, username])
-  
+    setLoadingSignUP(false);
+    setOpenSignUP(false);
+  }
+  async function signIn(event) {
+    event.preventDefault();
+    setLoadingSignIN(true);
+    try{
+        const user = await signInWithEmailAndPassword(auth, Email, Password);
+        console.log(user)
+    } catch (err) {
+        console.log(err.message);
+    }
+    setLoadingSignIN(false);
+    setOpenSignIN(false);
+  }
+  async function logout() {
+    await signOut(auth);
+    console.log('Logged Out');
+}
+
+  //  getting data from firebase
   useEffect(() => {
     const colRef = collection(db, 'posts')
     getDocs(colRef)
@@ -70,31 +85,12 @@ function App() {
     })
   }, []);
 
-  const signUp = (event) => {
-    event.preventDefault();
-
-    getAuth(firebaseApp).createUserWithEmailAndPassword(email, password)
-    // .createUserWithEmailAndPassword(email, password);
-    // .catch((err) => alert(err.message));
-    // .createUser({
-    //   username: username,
-    //   email: email,
-    //   password: password,
-    // })
-    // .then((userRecord) => {
-    // //  See the UserRecord reference doc for the contents of userRecord.
-    // console.log('Successfully created new user:', userRecord.uid);
-    // })
-    // .catch((error) => {
-    //   console.log('Error creating new user:', error);
-    // })
-  }
   
   return (
     <div className="app">
         <Modal
-          open={open}
-          onClose={() => setopen(false)}
+          open={OpenSignUP}
+          onClose={() => setOpenSignUP(false)}
         >
           <Box sx={style}>
             <form className="app__signup">
@@ -104,27 +100,59 @@ function App() {
               <Input 
                 type="text"
                 placeholder="User Name"
-                value={username}
-                onChange = {(e) => setusername(e.target.value)}
+                value={Username}
+                onChange = {(e) => setUsername(e.target.value)}
               />
               <Input 
                 type="email"
                 placeholder="email"
-                value={email}
-                onChange = {(e) => setemail(e.target.value)}
+                value={Email}
+                onChange = {(e) => setEmail(e.target.value)}
               />
               <Input 
                 type='password'
                 placeholder='password'
-                value={password}
-                onChange = {(e) => setpassword(e.target.value)}
+                value={Password}
+                onChange = {(e) => setPassword(e.target.value)}
               />
-              <Button type='submit' onClick={signUp}>Sign UP</Button>
+              <Button disabled={LoadingSignUP} type='submit' onClick={signUp}>Sign UP</Button>
             </form>
-
           </Box>
         </Modal>
-        <Button onClick={() => setopen(true)}>Sign UP</Button>
+        <Modal
+          open={OpenSignIN}
+          onClose={() => setOpenSignIN(false)}
+        >
+          <Box sx={style}>
+            <form className="app__signup">
+              <center>
+                <h1>Instagram</h1>
+              </center>
+              <Input 
+                type="email"
+                placeholder="email"
+                value={Email}
+                onChange = {(e) => setEmail(e.target.value)}
+              />
+              <Input 
+                type='password'
+                placeholder='password'
+                value={Password}
+                onChange = {(e) => setPassword(e.target.value)}
+              />
+              <Button disabled={LoadingSignIN} type='submit' onClick={signIn}>Sign IN</Button>
+            </form>
+          </Box>
+        </Modal>
+        {User ? (
+            <Button onClick={logout}> Logout</Button>
+          ) : (
+            <div>
+              <Button onClick={() => setOpenSignUP(true)}>Sign UP</Button>
+              <Button onClick={() => setOpenSignIN(true)}>Sign IN</Button>
+            </div>
+          )}
+        {/* <Button onClick={() => setOpen(true)}>Sign UP</Button> */}
 
 
         <div className='app__header'>
